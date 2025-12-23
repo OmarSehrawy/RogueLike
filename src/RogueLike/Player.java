@@ -1,0 +1,31 @@
+package RogueLike;
+
+import java.awt.*;
+
+public class Player extends Entity{
+    int xp;
+    int level;
+    public Player(int startX,int startY) {
+        this.x_pos = startX;
+        this.y_pos = startY;
+        this.glyph = '@';
+        this.color = Color.GREEN;
+        this.name = "RogueLike.Player";
+        this.maxHP = 30;
+        this.hp = maxHP;
+        this.damage = 5;
+        this.xp = 0;
+        this.level = 1;
+    }
+    public void gainXP(int xp,MessageLog log) {
+        this.xp += xp;
+        if(this.xp >= 100) {
+            this.level++;
+            this.xp =0;
+            this.maxHP += 10;
+            this.hp = maxHP;
+            this.damage += 2;
+            log.add(String.format("%sYou leveled up%s","\u001B[38;2;0;255;255m","\u001B[0m"));
+        }
+    }
+}

@@ -1,0 +1,178 @@
+package RogueLike;
+
+import java.awt.*;
+import java.util.ArrayList;
+import java.util.List;
+import java.util.concurrent.ThreadLocalRandom;
+
+public class World {
+    public int floor = 0;
+    private int width;
+    private int height;
+    private Tile[][] map;
+    private List<Monster> monsters = new ArrayList<>();
+    public MessageLog log = new MessageLog();
+    public void display(Player player) {
+        String reset = "\u001B[0m";
+        for (int y = 0; y < height; y++) {
+            for (int x = 0; x < width; x++) {
+                if (player.x_pos == x && player.y_pos == y) {
+                    printEntity(player.color,player.glyph);
+                } else if (getMonsterAt(x,y) != null) {
+                    Monster m = getMonsterAt(x,y);
+                    printEntity(m.color,m.glyph);
+                } else {
+                    Tile tile = map[x][y];
+                    String colorCode = convertColor(tile.color);
+                    System.out.printf("%s%c%s ", colorCode, tile.glyph, reset);
+                }
+            }
+            System.out.println();
+        }
+    }
+    public World(int width, int height) {
+        this.width = width;
+        this.height = height;
+        this.map = new Tile[width][height];
+    }
+    public void setMap() {
+        for (int x = 0; x < width; x++) {
+            for (int y = 0; y < height; y++) {
+                if(x == 0 || x == width - 1 || y == 0 || y == height - 1) {
+                    map[x][y] = Tile.WALL;
+                } else {
+                    map[x][y] = Tile.FLOOR;
+                }
+            }
+        }
+    }
+    public String convertColor(Color color) {
+        if (color == null) return "\u001B[0m";
+        return String.format("\u001B[38;2;%d;%d;%dm",
+                color.getRed(),
+                color.getGreen(),
+                color.getBlue());
+    }
+    public Tile getTile(int x, int y) {
+        return map[x][y];
+    }
+    public void spawnMonsters(int count,Player player) {
+        for (int i = 0; i < count; i++) {
+            int x = ThreadLocalRandom.current().nextInt(1,width-1);
+            int y = ThreadLocalRandom.current().nextInt(1,height-1);
+            if (!isOccupied(player,x,y)) {
+                monsters.add(new Monster(x,y));
+            } else {
+                i--;
+            }
+        }
+    }
+    public Monster getMonsterAt(int x, int y) {
+        for (Monster m : monsters) {
+            if (m.x_pos == x && m.y_pos == y) return m;
+        }
+        return null;
+    }
+    private void printEntity(Color c,char g) {
+        System.out.printf("%s%c\u001B[0m ", convertColor(c), g);
+    }
+    private boolean isOccupied(Player player,int x,int y) {
+        if(map[x][y] == Tile.WALL) return true;
+        if(player.x_pos == x && player.y_pos == y) return true;
+        for (Monster m : monsters) {
+            if (m.x_pos == x && m.y_pos == y) return true;
+        }
+        return false;
+    }
+    public void moveMonsters(Player player) {
+        int visionRange = 5;
+        for (Monster m : monsters) {
+            int dist = Math.abs(player.x_pos - m.x_pos) + Math.abs(player.y_pos - m.y_pos);
+            if (dist <= visionRange) {
+                moveTowardPlayer(player,m);
+                if(dist == 1) {
+                    player.takeDamage(m.damage);
+                    log.add(String.format("%s%s hit you for %d damage%s",convertColor(Color.RED),m.name,m.damage,"\u001B[0m"));
+                }
+            } else {
+                moveRandomly(m);
+            }
+        }
+    }
+    private void moveTowardPlayer(Player player,Monster m) {
+        int dx = 0;
+        int dy = 0;
+        int distX = Math.abs(player.x_pos - m.x_pos);
+        int distY = Math.abs(player.y_pos - m.y_pos);
+        if (distX > distY) {
+            dx = (player.x_pos > m.x_pos)? 1 : -1;
+        }
+        else if (distY > 0) {
+            dy = (player.y_pos > m.y_pos)? 1 : -1;
+        }
+        if(!isOccupied(player,m.x_pos+dx,m.y_pos+dy)) {
+            m.x_pos += dx;
+            m.y_pos += dy;
+        }
+    }
+    private void moveRandomly(Monster m) {
+        if(Math.random() < 0.25) {
+            int dir = (int)(Math.random() * 4);
+            int dx = 0; int dy = 0;
+            switch (dir) {
+                case 0:
+                    dy = -1;
+                    break;
+                case 1:
+                    dy = 1;
+                    break;
+                case 2:
+                    dx = -1;
+                    break;
+                case 3:
+                    dx = 1;
+                    break;
+                default:
+                    break;
+            }
+            if(map[m.x_pos+dx][m.y_pos+dy] == Tile.FLOOR) {
+                m.x_pos += dx;
+                m.y_pos += dy;
+            }
+        }
+    }
+    public void playerAtk(Player player,int x,int y) {
+        Monster target = getMonsterAt(x,y);
+        if (target != null) {
+            int damage = player.damage;
+            target.takeDamage(damage);
+            log.add(String.format("%sYou have hit %s for %d damage%s",convertColor(Color.GREEN),target.name,damage,"\u001B[0m"));
+            if(target.isDead()) {
+                log.add(String.format("%s%s died%s",convertColor(Color.GREEN),target.name,"\u001B[0m"));
+                player.gainXP(target.xp,log);
+                monsters.remove(target);
+            }
+        }
+    }
+    public boolean isPlayerExit(Player player) {
+        return map[player.x_pos][player.y_pos] == Tile.STAIRS;
+    }
+    public void generateFloor(Player player) {
+        this.floor++;
+        setMap();
+        this.monsters.clear();
+        spawnMonsters(3,player);
+        placeExit();
+        if(this.floor > 1) {
+            log.add(String.format("%sYou descend deeper%s", "\u001B[38;2;255;255;0m", "\u001B[0m"));
+        }
+    }
+    public void placeExit() {
+        int x,y;
+        do {
+            x = ThreadLocalRandom.current().nextInt(1,width-1);
+            y = ThreadLocalRandom.current().nextInt(1,height-1);
+        } while (map[x][y] != Tile.FLOOR);
+        map[x][y] = Tile.STAIRS;
+    }
+}
