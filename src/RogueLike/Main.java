@@ -67,6 +67,7 @@ public class Main {
                 System.out.printf("%sYou died%s%n",convertColor(Color.RED),"\u001B[0m");
                 System.out.println("Press to exit");
                 scanner.nextLine();
+                scanner.nextLine();
                 break;
             }
         }
