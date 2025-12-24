@@ -5,9 +5,10 @@ import java.awt.*;
 public enum Tile {
     WALL('#',Color.WHITE),
     FLOOR('.',Color.GRAY),
-    STAIRS('^',Color.YELLOW);
-    public final char glyph;
-    public final Color color;
+    STAIRSDOWN('+',Color.YELLOW),
+    STAIRSUP('^',Color.YELLOW);
+    public char glyph;
+    public Color color;
     Tile(char glyph,Color color) {
         this.glyph = glyph;
         this.color = color;

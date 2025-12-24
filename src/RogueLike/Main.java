@@ -27,17 +27,23 @@ public class Main {
         if(input == 9) { nextY--; nextX++; }
         if(input == 1) { nextY++; nextX--; }
         if(input == 3) { nextY++; nextX++; }
-        boolean validModeMade = false;
+        boolean turnFinished = false;
+        boolean playerMoved = false;
         if(world.getTile(nextX,nextY) != Tile.WALL) {
             if(world.getMonsterAt(nextX,nextY) != null) {
                 world.playerAtk(player,nextX,nextY);
             } else {
                 player.x_pos = nextX;
                 player.y_pos = nextY;
+                playerMoved = true;
             }
-            validModeMade = true;
+            turnFinished = true;
         }
-        if(validModeMade) world.moveMonsters(player);
+        if(turnFinished) world.moveMonsters(player);
+        if(playerMoved) {
+            if(world.isPlayerExit(player)) world.changeFloor(player,1);
+            else if(world.isPlayerReturn(player)) world.changeFloor(player,-1);
+        }
     }
     public static String convertColor(Color color) {
         if (color == null) return "\u001B[0m";
@@ -63,7 +69,6 @@ public class Main {
         displayStats(player, world.floor);
         world.log.display();
         handleInput(world, player);
-        if(world.isPlayerExit(player)) world.generateFloor(player);
     }
     public static void main(String[] args) {
         boolean playing = true;
@@ -80,7 +85,7 @@ public class Main {
                     playing = false;
                 } else {
                     player = new Player(4,4);
-                    world.floor = 0;
+                    world = new World(15,10);
                     world.generateFloor(player);
                 }
             }

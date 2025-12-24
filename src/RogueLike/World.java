@@ -10,8 +10,12 @@ public class World {
     private int width;
     private int height;
     private Tile[][] map;
+    private List<Tile[][]> levels = new ArrayList<>();
     public List<Monster> monsters = new ArrayList<>();
+    public List<List<Monster>> levelMonsters = new ArrayList<>();
     public MessageLog log = new MessageLog();
+    boolean hasEnteredJungle = false;
+    boolean hasEnteredDungeon = false;
     public void display(Player player) {
         String reset = "\u001B[0m";
         for (int y = 0; y < height; y++) {
@@ -23,19 +27,31 @@ public class World {
                     printEntity(m.color,m.glyph);
                 } else {
                     Tile tile = map[x][y];
-                    String colorCode = convertColor(tile.color);
+                    Color displayColor = getDisplayColor(tile);
+                    String colorCode = convertColor(displayColor);
                     System.out.printf("%s%c%s ", colorCode, tile.glyph, reset);
                 }
             }
             System.out.println();
         }
     }
+    private Color getDisplayColor(Tile tile) {
+        Color displayColor = tile.color;
+        if (this.floor > 5 && this.floor <= 10) {
+            if (tile == Tile.WALL) displayColor = new Color(0, 150, 0);
+            if (tile == Tile.FLOOR) displayColor = new Color(150, 75, 25);
+        } else if (this.floor > 10) {
+            if (tile == Tile.WALL) displayColor = new Color(25,0,150);
+            if (tile == Tile.FLOOR) displayColor = new Color(0,0,100);
+        }
+        return displayColor;
+    }
     public World(int width, int height) {
         this.width = width;
         this.height = height;
         this.map = new Tile[width][height];
     }
-    public void setMap() {
+    public void setMap(Tile[][] map) {
         for (int x = 0; x < width; x++) {
             for (int y = 0; y < height; y++) {
                 if(x == 0 || x == width - 1 || y == 0 || y == height - 1) {
@@ -56,7 +72,7 @@ public class World {
     public Tile getTile(int x, int y) {
         return map[x][y];
     }
-    public void spawnMonsters(int count,Player player) {
+    public void spawnMonsters(List<Monster> monsters,int count,Player player) {
         for (int i = 0; i < count; i++) {
             int x = ThreadLocalRandom.current().nextInt(1,width-1);
             int y = ThreadLocalRandom.current().nextInt(1,height-1);
@@ -146,16 +162,40 @@ public class World {
         }
     }
     public boolean isPlayerExit(Player player) {
-        return map[player.x_pos][player.y_pos] == Tile.STAIRS;
+        return map[player.x_pos][player.y_pos] == Tile.STAIRSDOWN;
+    }
+    public boolean isPlayerReturn(Player player) {
+        return map[player.x_pos][player.y_pos] == Tile.STAIRSUP;
     }
     public void generateFloor(Player player) {
         this.floor++;
-        setMap();
-        this.monsters.clear();
-        spawnMonsters(3,player);
+        Tile[][] newMap = new Tile[width][height];
+        setMap(newMap);
+        levels.add(newMap);
+        List<Monster> newMonsters = new ArrayList<>();
+        spawnMonsters(newMonsters,3,player);
+        levelMonsters.add(newMonsters);
+        this.map = newMap;
+        this.monsters = newMonsters;
         placeExit();
         if(this.floor > 1) {
             log.add(String.format("%sYou descend deeper%s", "\u001B[38;2;255;255;0m", "\u001B[0m"));
+            placeReturn();
+            Point start = findTile(Tile.STAIRSUP);
+            player.x_pos = start.x_pos;
+            player.y_pos = start.y_pos;
+        }
+        if(this.floor == 6) {
+            if(!hasEnteredJungle) {
+                log.add(String.format("%sYou enter the jungle%s", "\u001B[38;2;255;255;0m", "\u001B[0m"));
+                hasEnteredJungle = true;
+            }
+        }
+        if(this.floor == 11) {
+            if(!hasEnteredDungeon) {
+                log.add(String.format("%sYou enter the dungeon%s", "\u001B[38;2;255;255;0m", "\u001B[0m"));
+                hasEnteredDungeon = true;
+            }
         }
     }
     public void placeExit() {
@@ -164,6 +204,38 @@ public class World {
             x = ThreadLocalRandom.current().nextInt(1,width-1);
             y = ThreadLocalRandom.current().nextInt(1,height-1);
         } while (map[x][y] != Tile.FLOOR);
-        map[x][y] = Tile.STAIRS;
+        map[x][y] = Tile.STAIRSDOWN;
+    }
+    public void placeReturn() {
+        int x,y;
+        do {
+            x = ThreadLocalRandom.current().nextInt(1,width-1);
+            y = ThreadLocalRandom.current().nextInt(1,height-1);
+        } while (map[x][y] != Tile.FLOOR);
+        map[x][y] = Tile.STAIRSUP;
+    }
+    public void changeFloor(Player player, int dir) {
+        int targetIndex = this.floor - 1 + dir;
+        if (targetIndex >= 0 && targetIndex < levels.size()) {
+            this.floor += dir;
+            this.map = levels.get(targetIndex);
+            this.monsters = levelMonsters.get(targetIndex);
+            Tile landingTile = (dir > 0)? Tile.STAIRSUP : Tile.STAIRSDOWN;
+            Point landingPos = findTile(landingTile);
+            if(landingPos != null) {
+                player.x_pos = landingPos.x_pos;
+                player.y_pos = landingPos.y_pos;
+            }
+        } else if (dir > 0) {
+            generateFloor(player);
+        }
+    }
+    private Point findTile(Tile tile) {
+        for (int x = 0; x < width; x++) {
+            for (int y = 0; y < height; y++) {
+                if(map[x][y] == tile) return new Point(x,y);
+            }
+        }
+        return null;
     }
 }
