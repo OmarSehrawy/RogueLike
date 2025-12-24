@@ -10,7 +10,7 @@ public class World {
     private int width;
     private int height;
     private Tile[][] map;
-    private List<Monster> monsters = new ArrayList<>();
+    public List<Monster> monsters = new ArrayList<>();
     public MessageLog log = new MessageLog();
     public void display(Player player) {
         String reset = "\u001B[0m";
@@ -61,7 +61,7 @@ public class World {
             int x = ThreadLocalRandom.current().nextInt(1,width-1);
             int y = ThreadLocalRandom.current().nextInt(1,height-1);
             if (!isOccupied(player,x,y)) {
-                monsters.add(new Monster(x,y));
+                monsters.add(new Monster(x,y,this.floor));
             } else {
                 i--;
             }
@@ -87,32 +87,23 @@ public class World {
     public void moveMonsters(Player player) {
         int visionRange = 5;
         for (Monster m : monsters) {
-            int dist = Math.abs(player.x_pos - m.x_pos) + Math.abs(player.y_pos - m.y_pos);
+            int dist = Math.max(Math.abs(player.x_pos - m.x_pos), Math.abs(player.y_pos - m.y_pos));
             if (dist <= visionRange) {
                 moveTowardPlayer(player,m);
-                if(dist == 1) {
-                    player.takeDamage(m.damage);
-                    log.add(String.format("%s%s hit you for %d damage%s",convertColor(Color.RED),m.name,m.damage,"\u001B[0m"));
-                }
             } else {
                 moveRandomly(m);
             }
         }
     }
     private void moveTowardPlayer(Player player,Monster m) {
-        int dx = 0;
-        int dy = 0;
-        int distX = Math.abs(player.x_pos - m.x_pos);
-        int distY = Math.abs(player.y_pos - m.y_pos);
-        if (distX > distY) {
-            dx = (player.x_pos > m.x_pos)? 1 : -1;
-        }
-        else if (distY > 0) {
-            dy = (player.y_pos > m.y_pos)? 1 : -1;
-        }
+        int dx = Integer.compare(player.x_pos,m.x_pos);
+        int dy = Integer.compare(player.y_pos,m.y_pos);
         if(!isOccupied(player,m.x_pos+dx,m.y_pos+dy)) {
             m.x_pos += dx;
             m.y_pos += dy;
+        } else if (player.x_pos == m.x_pos+dx && player.y_pos == m.y_pos+dy) {
+            player.takeDamage(m.damage);
+            log.add(String.format("%s%s hit you for %d damage%s", convertColor(Color.RED), m.name, m.damage, "\u001B[0m"));
         }
     }
     private void moveRandomly(Monster m) {

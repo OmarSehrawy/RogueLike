@@ -19,12 +19,12 @@ public class Player extends Entity{
     }
     public void gainXP(int xp,MessageLog log) {
         this.xp += xp;
-        if(this.xp >= 100) {
+        if(this.xp >= 100 + (this.level - 1) * 50) {
+            this.xp -= 100 + (this.level - 1) * 50;
             this.level++;
-            this.xp =0;
-            this.maxHP += 10;
+            this.maxHP += 25;
             this.hp = maxHP;
-            this.damage += 2;
+            this.damage += 3;
             log.add(String.format("%sYou leveled up%s","\u001B[38;2;0;255;255m","\u001B[0m"));
         }
     }

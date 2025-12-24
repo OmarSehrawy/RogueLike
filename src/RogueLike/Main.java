@@ -10,22 +10,27 @@ public class Main {
         System.out.flush();
     }
     public static void handleInput(World world, Player player) {
-        System.out.println("Move (WASD) ");
-        String input = scanner.nextLine().toLowerCase();
+        System.out.println("Move with numpad in 8 directions");
+        int input = scanner.nextInt();
         int nextX = player.x_pos;
         int nextY = player.y_pos;
-        if(input.equals("w")) nextY--;
-        if(input.equals("s")) nextY++;
-        if(input.equals("d")) nextX++;
-        if(input.equals("a")) nextX--;
+        if(input == 8) nextY--;
+        if(input == 2) nextY++;
+        if(input == 6) nextX++;
+        if(input == 4) nextX--;
+        if(input == 7) { nextY--; nextX--; }
+        if(input == 9) { nextY--; nextX++; }
+        if(input == 1) { nextY++; nextX--; }
+        if(input == 3) { nextY++; nextX++; }
         boolean validModeMade = false;
         if(world.getTile(nextX,nextY) != Tile.WALL) {
-            player.x_pos = nextX;
-            player.y_pos = nextY;
+            if(world.getMonsterAt(nextX,nextY) != null) {
+                world.playerAtk(player,nextX,nextY);
+            } else {
+                player.x_pos = nextX;
+                player.y_pos = nextY;
+            }
             validModeMade = true;
-        }
-        if(world.getMonsterAt(nextX,nextY) != null) {
-            world.playerAtk(player,nextX,nextY);
         }
         if(validModeMade) world.moveMonsters(player);
     }
@@ -47,7 +52,7 @@ public class Main {
         System.out.printf("HP: %s%d/%d%s | DMG: %s%d%s%n",hpColor,player.hp,player.maxHP,reset,red,player.damage,reset);
         System.out.printf("XP: %s%d%s | Level: %s%d%s%n",cyan,player.xp,reset,cyan,player.level,reset);
     }
-    public static void main() {
+    public static void main(String[] args) {
         World world = new World(15, 10);
         Player player = new Player(4,4);
         world.generateFloor(player);
