@@ -17,7 +17,7 @@ public class Monster extends Entity{
         this.glyph = 'M';
         this.x_pos = startX;
         this.y_pos = startY;
-        this.id = ThreadLocalRandom.current().nextInt(0,3);
+        this.id = ThreadLocalRandom.current().nextInt(0,5);
         this.color = colors[id];
         this.name = names[id];
         this.maxHP = maxHPs[id]+(floor-1)*(id+1);
