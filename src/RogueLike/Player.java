@@ -19,8 +19,8 @@ public class Player extends Entity{
     }
     public void gainXP(int xp,MessageLog log) {
         this.xp += xp;
-        if(this.xp >= 100 + (this.level - 1) * 50) {
-            this.xp -= 100 + (this.level - 1) * 50;
+        if(this.xp >= 50 + (this.level - 1) * 50) {
+            this.xp -= 50 + (this.level - 1) * 50;
             this.level++;
             this.maxHP += 25;
             this.hp = maxHP;

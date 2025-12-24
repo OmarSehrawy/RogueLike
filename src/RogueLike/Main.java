@@ -11,7 +11,12 @@ public class Main {
     }
     public static void handleInput(World world, Player player) {
         System.out.println("Move with numpad in 8 directions");
+        if(!scanner.hasNextInt()) {
+            scanner.nextLine();
+            return;
+        }
         int input = scanner.nextInt();
+        scanner.nextLine();
         int nextX = player.x_pos;
         int nextY = player.y_pos;
         if(input == 8) nextY--;
@@ -52,23 +57,32 @@ public class Main {
         System.out.printf("HP: %s%d/%d%s | DMG: %s%d%s%n",hpColor,player.hp,player.maxHP,reset,red,player.damage,reset);
         System.out.printf("XP: %s%d%s | Level: %s%d%s%n",cyan,player.xp,reset,cyan,player.level,reset);
     }
+    public static void gameLoop(Player player, World world) {
+        clearScreen();
+        world.display(player);
+        displayStats(player, world.floor);
+        world.log.display();
+        handleInput(world, player);
+        if(world.isPlayerExit(player)) world.generateFloor(player);
+    }
     public static void main(String[] args) {
+        boolean playing = true;
         World world = new World(15, 10);
         Player player = new Player(4,4);
         world.generateFloor(player);
-        while (true) {
-            clearScreen();
-            world.display(player);
-            displayStats(player, world.floor);
-            world.log.display();
-            handleInput(world, player);
-            if(world.isPlayerExit(player)) world.generateFloor(player);
+        while (playing) {
+            gameLoop(player,world);
             if(player.isDead()) {
                 System.out.printf("%sYou died%s%n",convertColor(Color.RED),"\u001B[0m");
-                System.out.println("Press to exit");
-                scanner.nextLine();
-                scanner.nextLine();
-                break;
+                System.out.println("Play again y/n?");
+                String choice = scanner.nextLine().toLowerCase();
+                if(!choice.equals("y")) {
+                    playing = false;
+                } else {
+                    player = new Player(4,4);
+                    world.floor = 0;
+                    world.generateFloor(player);
+                }
             }
         }
     }
