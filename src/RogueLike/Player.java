@@ -12,7 +12,7 @@ public class Player extends Entity{
         this.name = "RogueLike.Player";
         this.maxHP = 30;
         this.hp = maxHP;
-        this.damage = 77;
+        this.damage = 7;
         this.xp = 0;
         this.level = 1;
         this.score = 0;
