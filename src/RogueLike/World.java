@@ -6,7 +6,7 @@ import java.util.List;
 import java.util.concurrent.ThreadLocalRandom;
 
 public class World {
-    private int floor = 0;
+    private int floor;
     private int width;
     private int height;
     private Tile[][] map;
@@ -49,6 +49,7 @@ public class World {
     public World(int width, int height) {
         this.width = width;
         this.height = height;
+        this.floor = 0;
         this.map = new Tile[width][height];
     }
     public void setMap(Tile[][] map) {
@@ -73,10 +74,11 @@ public class World {
         return map[x][y];
     }
     public void spawnMonsters(List<Monster> monsters,int count,Player player) {
+        int[][] distMap = getDijkstraMap(player);
         for (int i = 0; i < count; i++) {
             int x = ThreadLocalRandom.current().nextInt(1,width-1);
             int y = ThreadLocalRandom.current().nextInt(1,height-1);
-            if (!isOccupied(player,x,y)) {
+            if (distMap[x][y] > 1 && !isOccupied(player,x,y)) {
                 monsters.add(new Monster(x,y,this.floor));
             } else {
                 i--;
@@ -101,25 +103,68 @@ public class World {
         return false;
     }
     public void moveMonsters(Player player) {
+        int[][] dMap = getDijkstraMap(player);
         int visionRange = 5;
         for (Monster m : monsters) {
-            int dist = Math.max(Math.abs(player.x_pos - m.x_pos), Math.abs(player.y_pos - m.y_pos));
-            if (dist <= visionRange) {
-                moveTowardPlayer(player,m);
+            if(m.isCowardly && m.hp < player.damage) {
+                moveAwayPlayer(player,m,dMap);
             } else {
-                moveRandomly(m);
+                if (dMap[m.x_pos][m.y_pos] <= visionRange) {
+                    moveTowardPlayer(player, m, dMap);
+                } else {
+                    moveRandomly(m);
+                }
             }
         }
     }
-    private void moveTowardPlayer(Player player,Monster m) {
-        int dx = Integer.compare(player.x_pos,m.x_pos);
-        int dy = Integer.compare(player.y_pos,m.y_pos);
-        if(!isOccupied(player,m.x_pos+dx,m.y_pos+dy)) {
-            m.x_pos += dx;
-            m.y_pos += dy;
-        } else if (player.x_pos == m.x_pos+dx && player.y_pos == m.y_pos+dy) {
+    private void moveTowardPlayer(Player player,Monster m,int[][] dMap) {
+        int bestX = m.x_pos;
+        int bestY = m.y_pos;
+        int minScore = dMap[m.x_pos][m.y_pos];
+        for (int dx = -1; dx <= 1; dx++) {
+            for (int dy = -1; dy <= 1; dy++) {
+                int nx = m.x_pos + dx;
+                int ny = m.y_pos + dy;
+                if (nx >= 0 && nx < width && ny >= 0 && ny < height) {
+                    if (dMap[nx][ny] < minScore && getMonsterAt(nx,ny) == null) {
+                        minScore = dMap[nx][ny];
+                        bestX = nx;
+                        bestY = ny;
+                    }
+                }
+            }
+        }
+        if (bestX == player.x_pos && bestY == player.y_pos) {
             player.takeDamage(m.damage);
             log.add(String.format("%s%s hit you for %d damage%s", convertColor(Color.RED), m.name, m.damage, "\u001B[0m"));
+        } else {
+            m.x_pos = bestX;
+            m.y_pos = bestY;
+        }
+    }
+    private void moveAwayPlayer(Player player,Monster m,int[][] dMap) {
+        int bestX = m.x_pos;
+        int bestY = m.y_pos;
+        int maxScore = dMap[m.x_pos][m.y_pos];
+        for (int dx = -1; dx <= 1; dx++) {
+            for (int dy = -1; dy <= 1; dy++) {
+                int nx = m.x_pos + dx;
+                int ny = m.y_pos + dy;
+                if (nx >= 0 && nx < width && ny >= 0 && ny < height) {
+                    if (dMap[nx][ny] > maxScore && dMap[nx][ny] != Integer.MAX_VALUE && getMonsterAt(nx,ny) == null) {
+                        maxScore = dMap[nx][ny];
+                        bestX = nx;
+                        bestY = ny;
+                    }
+                }
+            }
+        }
+        if (bestX == player.x_pos && bestY == player.y_pos) {
+            player.takeDamage(m.damage);
+            log.add(String.format("%s%s hit you for %d damage%s", convertColor(Color.RED), m.name, m.damage, "\u001B[0m"));
+        } else {
+            m.x_pos = bestX;
+            m.y_pos = bestY;
         }
     }
     private void moveRandomly(Monster m) {
@@ -171,7 +216,7 @@ public class World {
     public void generateFloor(Player player) {
         this.floor++;
         Tile[][] newMap = new Tile[width][height];
-        if(Math.random() < 0.2) {
+        if(Math.random() < (double) 1 / 6) {
             setMap(newMap);
         } else {
             int mapID = ThreadLocalRandom.current().nextInt(MapPool.floorMaps.size());
@@ -268,5 +313,32 @@ public class World {
     }
     public int getFloor() {
         return this.floor;
+    }
+    public int[][] getDijkstraMap(Player player) {
+        int[][] distMap = new int[width][height];
+        for (int x = 0; x < width; x++) {
+            for (int y = 0; y < height; y++) {
+                distMap[x][y] = Integer.MAX_VALUE;
+            }
+        }
+        List<Node> queue = new ArrayList<>();
+        distMap[player.x_pos][player.y_pos] = 0;
+        queue.add(new Node(player.x_pos, player.y_pos,0));
+        int count = 0;
+        while (count < queue.size()) {
+            Node current = queue.get(count++);
+            for (int dx = -1; dx <= 1; dx++) {
+                for (int dy = -1; dy <= 1; dy++) {
+                    if (dx == 0 && dy == 0) continue;
+                    int nx = current.x + dx;
+                    int ny = current.y + dy;
+                    if(nx >= 0 && nx < width && ny >= 0 && ny < height && map[nx][ny] != Tile.WALL && distMap[nx][ny] == Integer.MAX_VALUE) {
+                        distMap[nx][ny] = current.dist + 1;
+                        queue.add(new Node(nx,ny,current.dist+1));
+                    }
+                }
+            }
+        }
+        return distMap;
     }
 }
