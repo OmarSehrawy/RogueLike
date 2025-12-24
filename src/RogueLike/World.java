@@ -6,7 +6,7 @@ import java.util.List;
 import java.util.concurrent.ThreadLocalRandom;
 
 public class World {
-    public int floor = 0;
+    private int floor = 0;
     private int width;
     private int height;
     private Tile[][] map;
@@ -41,7 +41,7 @@ public class World {
             if (tile == Tile.WALL) displayColor = new Color(0, 150, 0);
             if (tile == Tile.FLOOR) displayColor = new Color(150, 75, 25);
         } else if (this.floor > 10) {
-            if (tile == Tile.WALL) displayColor = new Color(25,0,150);
+            if (tile == Tile.WALL) displayColor = new Color(100,0, 150);
             if (tile == Tile.FLOOR) displayColor = new Color(0,0,100);
         }
         return displayColor;
@@ -92,7 +92,7 @@ public class World {
     private void printEntity(Color c,char g) {
         System.out.printf("%s%c\u001B[0m ", convertColor(c), g);
     }
-    private boolean isOccupied(Player player,int x,int y) {
+    public boolean isOccupied(Player player,int x,int y) {
         if(map[x][y] == Tile.WALL) return true;
         if(player.x_pos == x && player.y_pos == y) return true;
         for (Monster m : monsters) {
@@ -157,6 +157,7 @@ public class World {
             if(target.isDead()) {
                 log.add(String.format("%s%s died%s",convertColor(Color.GREEN),target.name,"\u001B[0m"));
                 player.gainXP(target.xp,log);
+                player.gainScore(target.score);
                 monsters.remove(target);
             }
         }
@@ -170,12 +171,19 @@ public class World {
     public void generateFloor(Player player) {
         this.floor++;
         Tile[][] newMap = new Tile[width][height];
-        setMap(newMap);
+        if(Math.random() < 0.2) {
+            setMap(newMap);
+        } else {
+            int mapID = ThreadLocalRandom.current().nextInt(MapPool.floorMaps.size());
+            String[] mapLayout = MapPool.floorMaps.get(mapID);
+            loadPreset(mapLayout, newMap);
+        }
         levels.add(newMap);
-        List<Monster> newMonsters = new ArrayList<>();
-        spawnMonsters(newMonsters,3,player);
-        levelMonsters.add(newMonsters);
         this.map = newMap;
+        List<Monster> newMonsters = new ArrayList<>();
+        int monsterRandom = ThreadLocalRandom.current().nextInt(2,5);
+        spawnMonsters(newMonsters,monsterRandom,player);
+        levelMonsters.add(newMonsters);
         this.monsters = newMonsters;
         placeExit();
         if(this.floor > 1) {
@@ -228,6 +236,7 @@ public class World {
             }
         } else if (dir > 0) {
             generateFloor(player);
+            player.gainScore(1000);
         }
     }
     private Point findTile(Tile tile) {
@@ -237,5 +246,27 @@ public class World {
             }
         }
         return null;
+    }
+    public void loadPreset(String[] preset,Tile[][] newMap) {
+        for (int y = 0; y < height; y++) {
+            String line = preset[y];
+            for (int x = 0; x < width; x++) {
+                char c = line.charAt(x);
+                if (c=='#') {
+                    newMap[x][y] = Tile.WALL;
+                } else {
+                    newMap[x][y] = Tile.FLOOR;
+                }
+            }
+        }
+    }
+    public int getWidth() {
+        return this.width;
+    }
+    public int getHeight() {
+        return this.height;
+    }
+    public int getFloor() {
+        return this.floor;
     }
 }

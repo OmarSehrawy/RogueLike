@@ -2,6 +2,7 @@ package RogueLike;
 
 import java.awt.*;
 import java.util.Scanner;
+import java.util.concurrent.ThreadLocalRandom;
 
 public class Main {
     private static Scanner scanner = new Scanner(System.in);
@@ -59,22 +60,32 @@ public class Main {
         String yellow = convertColor(Color.yellow);
         String reset = "\u001B[0m";
         String hpColor = (player.hp > player.maxHP/2)? green : red;
-        System.out.printf("Floor: %s%d%s%n",yellow,floor,reset);
+        System.out.printf("Floor: %s%d%s | Score: %s%d%s%n",yellow,floor,reset,yellow,player.score,reset);
         System.out.printf("HP: %s%d/%d%s | DMG: %s%d%s%n",hpColor,player.hp,player.maxHP,reset,red,player.damage,reset);
         System.out.printf("XP: %s%d%s | Level: %s%d%s%n",cyan,player.xp,reset,cyan,player.level,reset);
     }
     public static void gameLoop(Player player, World world) {
         clearScreen();
         world.display(player);
-        displayStats(player, world.floor);
+        displayStats(player, world.getFloor());
         world.log.display();
         handleInput(world, player);
     }
+    public static void placePlayer(Player player,World world) {
+        int x,y;
+        do {
+            x = ThreadLocalRandom.current().nextInt(1, world.getWidth() - 1);
+            y = ThreadLocalRandom.current().nextInt(1, world.getHeight() - 1);
+        } while (world.getTile(x,y) != Tile.FLOOR);
+        player.x_pos = x;
+        player.y_pos = y;
+    }
     public static void main(String[] args) {
         boolean playing = true;
-        World world = new World(15, 10);
-        Player player = new Player(4,4);
+        World world = new World(15, 11);
+        Player player = new Player();
         world.generateFloor(player);
+        placePlayer(player,world);
         while (playing) {
             gameLoop(player,world);
             if(player.isDead()) {
@@ -84,9 +95,10 @@ public class Main {
                 if(!choice.equals("y")) {
                     playing = false;
                 } else {
-                    player = new Player(4,4);
-                    world = new World(15,10);
+                    world = new World(15,11);
+                    player = new Player();
                     world.generateFloor(player);
+                    placePlayer(player,world);
                 }
             }
         }
